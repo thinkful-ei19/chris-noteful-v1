@@ -42,11 +42,11 @@ const noteful = (function () {
 
       const noteId = getNoteIdFromElement(event.currentTarget);
 
-      api.details(noteId, detailsResponse => {
-        store.currentNote = detailsResponse;
-        render();
+      api.details(noteId)
+        .then(detailsResponse => {
+          store.currentNote = detailsResponse;
+          render();
       });
-
     });
   }
 
@@ -57,14 +57,41 @@ const noteful = (function () {
       const searchTerm = $('.js-note-search-entry').val();
       store.currentSearchTerm = searchTerm ? { searchTerm } : {};
 
-      api.search(store.currentSearchTerm, searchResponse => {
-        store.notes = searchResponse;
-        render();
-      });
-
+      api.search(store.currentSearchTerm)
+        .then(searchResponse => {
+          store.notes = searchResponse;
+          render();
+        });
     });
   }
 
+  const apiSearch = function(updateResponse, id=false) {
+    if (updateResponse) {
+      api.search(store.currentSearchTerm)
+      .then(
+        updateResponse => {
+        store.notes = updateResponse;
+        render();
+      });
+    }
+    else if (api.search(store.currentSearchTerm)) {
+      api.search(store.currentSearchTerm)
+        .then(
+          callback => {
+          //make store.notes the same as the returned response- the new array with the deleted object.
+          store.notes = callback;
+          if (id === callback) {
+            //Make the currentNote false again
+            store.currentNote = false;
+          }
+          render();
+      })
+    }
+    else {
+      console.log('error');
+    }
+  }
+  
   function handleNoteFormSubmit() {
     $('.js-note-edit-form').on('submit', function (event) {
       event.preventDefault();
@@ -76,32 +103,38 @@ const noteful = (function () {
         title: editForm.find('.js-note-title-entry').val(),
         content: editForm.find('.js-note-content-entry').val()
       };
-  
+
       if (store.currentNote.id) {
   
-        api.update(store.currentNote.id, noteObj, updateResponse => {
+        api.update(store.currentNote.id, noteObj)
+        .then(
+          updateResponse => {
           store.currentNote = updateResponse;
-  
-          api.search(store.currentSearchTerm, updateResponse => {
-            store.notes = updateResponse;
-            render();
-          });
-  
+          apiSearch(store.currentNote);
+          // api.search(store.currentSearchTerm)
+          // .then(
+          //   updateResponse => {
+          //   store.notes = updateResponse;
+          //   render();
+          // });
         });
   
       } else {
   
-        api.create(noteObj, updateResponse => {
-          store.currentNote = updateResponse;
-  
-          api.search(store.currentSearchTerm, updateResponse => {
-            store.notes = updateResponse;
-            render();
+        api.create(noteObj)
+          .then(
+            updateResponse => {
+            store.currentNote = updateResponse;
+    
+            apiSearch(store.currentNote);
+            // api.search(store.currentSearchTerm)
+            //   .then(
+            //     updateResponse => {
+            //     store.notes = updateResponse;
+            //     render();
+            // })
           });
-  
-        });
       }
-  
     });
   }
 
@@ -118,26 +151,29 @@ const noteful = (function () {
       event.preventDefault();
       const id = getNoteIdFromElement(event.currentTarget);
 
-      api.delete(id, callback => {
-        //use the search call to find the id and set the new array to equal the response from callback.
-        api.search(store.currentSearchTerm, callback => {
-          //make store.notes the same as the returned response- the new array with the deleted object.
-          store.notes = callback;
-          if (id === callback) {
-            //Make the currentNote false again
-            store.currentNote = false;
-          }
-          render();
-        })
+      api.delete(id)
+        .then(
+        callback => {
+          //use the search call to find the id and set the new array to equal the response from callback.
+          apiSearch(store.currentSearchTerm, id);
+          // api.search(store.currentSearchTerm)
+          //   .then(
+          //     callback => {
+          //     //make store.notes the same as the returned response- the new array with the deleted object.
+          //     store.notes = callback;
+          //     if (id === callback) {
+          //       //Make the currentNote false again
+          //       store.currentNote = false;
+          //     }
+          //     render();
+          // })
       })
-      
     });
   }
 
   function bindEventListeners() {
     handleNoteItemClick();
     handleNoteSearchSubmit();
-    
     handleNoteFormSubmit();
     handleNoteStartNewSubmit();
     handleNoteDeleteClick();
@@ -146,7 +182,7 @@ const noteful = (function () {
   // This object contains the only exposed methods from this module:
   return {
     render: render,
-    bindEventListeners: bindEventListeners,
+    bindEventListeners: bindEventListeners, apiSearch
   };
 
 }());
