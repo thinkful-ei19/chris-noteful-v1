@@ -2,6 +2,9 @@
 
 // TEMP: Simple In-Memory Database
 const express = require('express');
+// const chai = require('chai');
+// const chaiHttp = require('chai-http');
+
 const morgan = require('morgan');
 const notesRouter = require('./router/notes.router');
 //This will take module.exports.PORT from config.js
@@ -39,8 +42,21 @@ app.use(function (err, req, res, net) {
     });
 });
 
-app.listen(PORT, function() {
-    console.info(`Server listening on ${this.address().port}`);
-}).on('error', err => {
-    console.error(err);
-});
+app.startServer = function(PORT) {
+    return new Promise ((resolve, reject) => {
+        this.listen(PORT, function() {
+            this.stopServer = require('util').promisify(this.close);
+            resolve(this);
+        }).on('error', reject);
+    })
+}
+
+if (require.main === module) {
+    app.listen(PORT, function() {
+        console.info(`Server listening on ${this.address().port}`);
+    }).on('error', err => {
+        console.error(err);
+    });
+}
+
+module.exports = app;
